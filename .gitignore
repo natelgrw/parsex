@@ -1,0 +1,12 @@
+# Binaries
+circuit_solver
+
+# Object files and Debug symbols
+*.o
+*.dSYM/
+
+# OS Specific
+.DS_Store
+
+# Generated Results
+circuit_results/

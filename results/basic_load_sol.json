@@ -1,0 +1,17 @@
+{
+  "circuit_name": "basic_load",
+  "results": {
+    "currents": {
+      "R1": 0.01,
+      "V1": -0.01
+    },
+    "power": {
+      "R1": 0.1,
+      "V1": -0.1
+    },
+    "voltages": {
+      "0": 0.0,
+      "1": 10.0
+    }
+  }
+}

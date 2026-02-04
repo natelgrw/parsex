@@ -1,0 +1,19 @@
+{
+  "circuit_name": "current_parallel",
+  "results": {
+    "currents": {
+      "I1": 1.0,
+      "R1": 0.5,
+      "R2": 0.5
+    },
+    "power": {
+      "I1": -50.0,
+      "R1": 25.0,
+      "R2": 25.0
+    },
+    "voltages": {
+      "0": 0.0,
+      "1": 50.0
+    }
+  }
+}

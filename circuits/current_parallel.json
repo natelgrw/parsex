@@ -1,0 +1,48 @@
+{
+  "name": "current_parallel",
+  "nodes": [
+    "0",
+    "1"
+  ],
+  "components": [
+    {
+      "name": "I1",
+      "type": "I",
+      "nodes": [
+        "0",
+        "1"
+      ],
+      "value": 1.0
+    },
+    {
+      "name": "R1",
+      "type": "R",
+      "nodes": [
+        "1",
+        "0"
+      ],
+      "value": 100.0
+    },
+    {
+      "name": "R2",
+      "type": "R",
+      "nodes": [
+        "1",
+        "0"
+      ],
+      "value": 100.0
+    }
+  ],
+  "adjacency_list": {
+    "0": [
+      "1",
+      "1",
+      "1"
+    ],
+    "1": [
+      "0",
+      "0",
+      "0"
+    ]
+  }
+}
