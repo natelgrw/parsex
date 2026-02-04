@@ -10,3 +10,4 @@ circuit_solver
 
 # Generated Results
 circuit_results/
+build/

@@ -1,3 +1,9 @@
+Version **0.1.1**
+
+Date Released: **02/04/2026**
+
+- Parallel MNA processing for batch circuit simulation
+
 Version **0.1.0**
 
 Date Released: **02/04/2026**
