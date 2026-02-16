@@ -1,27 +1,39 @@
-# Parsex Compiler
+# Parsex
 
-A HPC circuit solving compiler under development designed to batch hundreds/thousands of circuits across CPU/GPU cores into single HPC computations. Currently includes a C++23 reference MNA solver.
+An HPC circuit simulation engine under development designed to batch hundreds/thousands of circuits across CPU/GPU cores into massive parallel batches.
 
-Current Version: **0.1.0**
+Current Version: **0.2.0**
 
 ## 🪐 Features
 
-The compiler features a core solver built on custom Gaussian Elimination, eliminating the need for external linear algebra dependencies. Its MNA engine handles linear components including ideal voltage sources, current sources, and resistors. 
+1.  **Unified SoA Architecture**: Implements Structure-of-Arrays (SoA) memory layout (`A[row][col][batch]`) across both backends, ensuring contiguous memory access for batch coefficients.
+    
+2.  **SIMD-Batched CPU Solver**: Utilizes OpenMP SIMD to map batch indices to vector lanes (AVX2/AVX-512), processing multiple circuits per instruction.
+
+3.  **Custom Kernel GPU Solver**: Uses a custom CUDA kernel with one thread per circuit. Gaussian Elimination is performed in-register, bypassing library overhead for small matrices. SoA layout enables coalesced global memory access.
 
 The system calculates comprehensive simulation metrics such as node voltages, branch currents, and component power dissipation, utilizing a JSON-based data format for seamless input and output parsing.
 
 ## 🌌 Usage
 
-Requires a C++ compiler with C++23 support (e.g., Clang 15+, GCC 13+).
+Requires a C++ compiler with C++23 support (e.g., Clang 15+, GCC 13+). To enable GPU support, the CUDA Toolkit is required.
 
+### Build
 ```bash
-g++ -std=c++2b -Iinclude src/main.cpp src/MNASolver.cpp -o circuit_solver
+mkdir build && cd build
+cmake ..
+make
 ```
 
-Run the solver on a circuit JSON file:
+### Run Batch Solver
+Run the solver on a directory of circuit JSON files:
 
 ```bash
-./circuit_solver circuits/voltage_divider.json
+# CPU Solver (OpenMP)
+./parsex_batch --cpu circuits/
+
+# GPU Solver (CUDA)
+./parsex_batch --gpu circuits/
 ```
 
 Results are saved to `results/<name>_sol.json`:

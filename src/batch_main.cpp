@@ -1,4 +1,7 @@
-#include "BatchSolver.hpp"
+#include "cpu/CpuSolver.hpp"
+#ifndef NO_CUDA
+#include "gpu/GpuSolver.hpp"
+#endif
 #include "CircuitGraph.hpp" 
 #include <iostream>
 #include <vector>
@@ -40,7 +43,17 @@ void save_results(const std::vector<SimulationResult>& results, const std::vecto
     std::cout << "Saved " << results.size() << " results to " << output_dir << "/" << std::endl;
 }
 
-int main() {
+int main(int argc, char** argv) {
+    bool use_gpu = false;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--gpu") {
+            use_gpu = true;
+        } else if (arg == "--cpu") {
+            use_gpu = false;
+        }
+    }
+
     std::vector<CircuitGraph> batch;
     std::vector<std::string> circuit_names;
     
@@ -69,8 +82,19 @@ int main() {
 
     auto start_time = std::chrono::high_resolution_clock::now();
     
-    // Run the simplified parallel solver
-    std::vector<SimulationResult> results = solve_batch(batch);
+    std::vector<SimulationResult> results;
+    if (use_gpu) {
+#ifndef NO_CUDA
+        std::cout << "Using GPU Solver (CUDA)..." << std::endl;
+        results = GpuSolver::solve_batch(batch);
+#else
+        std::cerr << "Error: CUDA support not enabled in build." << std::endl;
+        return 1;
+#endif
+    } else {
+        std::cout << "Using CPU Solver (OpenMP)..." << std::endl;
+        results = CpuSolver::solve_batch(batch);
+    }
     
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end_time - start_time;

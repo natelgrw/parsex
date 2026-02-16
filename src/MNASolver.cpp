@@ -44,80 +44,16 @@ SimulationResult MNASolver::solve() {
         throw std::runtime_error("Circuit must contain a ground node named '0'");
     }
 
-    // Initialize A matrix and b vector (z)
-    // Dimension D = (NumNodes - 1) + NumVoltageSources
-    // We map graph node indices to matrix indices.
-    // Node mappings:
-    // graph_index -> matrix_index
-    // ground_idx -> -1 (ignore)
-    // other -> if index < ground_idx, index. if > ground_idx, index - 1.
-    
+    LinearSolver::Matrix A(matrix_size_, LinearSolver::Vector(matrix_size_, 0.0));
+    LinearSolver::Vector b(matrix_size_, 0.0);
+
     auto get_matrix_idx = [&](int graph_idx) -> int {
         if (graph_idx == ground_idx) return -1;
         if (graph_idx > ground_idx) return graph_idx - 1;
         return graph_idx;
     };
 
-    LinearSolver::Matrix A(matrix_size_, LinearSolver::Vector(matrix_size_, 0.0));
-    LinearSolver::Vector b(matrix_size_, 0.0);
-
-    // 1. Fill conductance part (N-1 x N-1)
-    // 2. Fill source incidence part
-    
-    for (const auto& comp : graph_.components) {
-        int n1 = graph_.get_node_index(comp.nodes[0]);
-        int n2 = graph_.get_node_index(comp.nodes[1]);
-        
-        int idx1 = get_matrix_idx(n1);
-        int idx2 = get_matrix_idx(n2);
-        
-        if (comp.type == "R") {
-            double g = 1.0 / comp.value;
-            
-            if (idx1 != -1) {
-                A[idx1][idx1] += g;
-                if (idx2 != -1) A[idx1][idx2] -= g;
-            }
-            if (idx2 != -1) {
-                A[idx2][idx2] += g;
-                if (idx1 != -1) A[idx2][idx1] -= g;
-            }
-        }
-        else if (comp.type == "I") {
-            // Current source flowing FROM n1 TO n2 means LEAVING n1, ENTERING n2.
-            // KCL: Sum of currents LEAVING = 0.
-            // If I leaves n1, it adds to the KCL at n1 (positive).
-            // Actually standard MNA RHS vector 'b' usually contains known currents entering the node.
-            // If I flows n1->n2, it leaves n1 ( enters n2).
-            // RHS[n1] -= I (current leaving) -> Wait, convention:
-            // Eq: G*v = I_in
-            // Current source FROM n1 TO n2 -> Leaves n1 (-I on LHS, or +I on RHS? No, I leaves n1.)
-            // Current entering is positive on RHS.
-            // So if I goes n1 -> n2, it LEAVES n1 (entering is -I) and ENTERS n2.
-            // b[idx1] -= I (since it leaves n1)
-            // b[idx2] += I (since it enters n2)
-            
-            if (idx1 != -1) b[idx1] -= comp.value;
-            if (idx2 != -1) b[idx2] += comp.value;
-        }
-        else if (comp.type == "V") {
-            // Voltage source connected between n1 (+) and n2 (-) with value V.
-            // Adds a row at the end.
-            int v_idx = (num_nodes_ - 1) + voltage_source_indices_[comp.name];
-            
-            // Constraint equation: v_n1 - v_n2 = Value
-            if (idx1 != -1) {
-                A[v_idx][idx1] = 1.0;
-                A[idx1][v_idx] = 1.0; // Symmetric stamp for MNA
-            }
-            if (idx2 != -1) {
-                A[v_idx][idx2] = -1.0;
-                A[idx2][v_idx] = -1.0; // Symmetric stamp
-            }
-            
-            b[v_idx] = comp.value;
-        }
-    }
+    assemble_system(A, b);
 
     // Solve
     LinearSolver::Vector x = LinearSolver::solve_linear_system(A, b);
@@ -185,5 +121,69 @@ SimulationResult MNASolver::solve() {
         // If P > 0, absorbing power. If P < 0, supplying power.
     }
     
+    
     return result;
+}
+
+void MNASolver::assemble_system(LinearSolver::Matrix& A, LinearSolver::Vector& b) {
+    // Check if node "0" exists
+    int ground_idx = -1;
+    try {
+        ground_idx = graph_.get_node_index("0");
+    } catch (...) {
+        throw std::runtime_error("Circuit must contain a ground node named '0'");
+    }
+
+    // Dimension check
+    if (A.size() != matrix_size_ || b.size() != matrix_size_) {
+        throw std::runtime_error("Matrix/Vector size mismatch in assemble_system");
+    }
+
+    auto get_matrix_idx = [&](int graph_idx) -> int {
+        if (graph_idx == ground_idx) return -1;
+        if (graph_idx > ground_idx) return graph_idx - 1;
+        return graph_idx;
+    };
+
+    // 1. Fill conductance part (N-1 x N-1)
+    // 2. Fill source incidence part
+    
+    for (const auto& comp : graph_.components) {
+        int n1 = graph_.get_node_index(comp.nodes[0]);
+        int n2 = graph_.get_node_index(comp.nodes[1]);
+        
+        int idx1 = get_matrix_idx(n1);
+        int idx2 = get_matrix_idx(n2);
+        
+        if (comp.type == "R") {
+            double g = 1.0 / comp.value;
+            
+            if (idx1 != -1) {
+                A[idx1][idx1] += g;
+                if (idx2 != -1) A[idx1][idx2] -= g;
+            }
+            if (idx2 != -1) {
+                A[idx2][idx2] += g;
+                if (idx1 != -1) A[idx2][idx1] -= g;
+            }
+        }
+        else if (comp.type == "I") {
+            if (idx1 != -1) b[idx1] -= comp.value;
+            if (idx2 != -1) b[idx2] += comp.value;
+        }
+        else if (comp.type == "V") {
+            int v_idx = (num_nodes_ - 1) + voltage_source_indices_[comp.name];
+            
+            if (idx1 != -1) {
+                A[v_idx][idx1] = 1.0;
+                A[idx1][v_idx] = 1.0;
+            }
+            if (idx2 != -1) {
+                A[v_idx][idx2] = -1.0;
+                A[idx2][v_idx] = -1.0;
+            }
+            
+            b[v_idx] = comp.value;
+        }
+    }
 }

@@ -23,22 +23,51 @@ find_package(OpenMP REQUIRED)
 # Trying standard find first (should be found via Homebrew now)
 find_package(Eigen3 REQUIRED NO_MODULE)
 
+
 # Include directories
 include_directories(include)
+include_directories(include/cpu)
+include_directories(include/gpu)
+include_directories(include/parallel)
 
 # Sources
 set(SOURCES
     src/MNASolver.cpp
-    src/BatchSolver.cpp
+    src/cpu/CpuSolver.cpp
 )
+
+# CUDA Support
+include(CheckLanguage)
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    list(APPEND SOURCES src/gpu/GpuSolver.cu)
+    set(CUDA_ENABLED ON)
+else()
+    message(STATUS "CUDA not found. GPU module will be disabled.")
+    add_definitions(-DNO_CUDA)
+    set(CUDA_ENABLED OFF)
+endif()
 
 # Batch Solver Executable
 add_executable(parsex_batch src/batch_main.cpp ${SOURCES})
-target_link_libraries(parsex_batch
-    PRIVATE
-    OpenMP::OpenMP_CXX
-    Eigen3::Eigen
-)
+
+if(CUDA_ENABLED)
+    target_link_libraries(parsex_batch
+        PRIVATE
+        OpenMP::OpenMP_CXX
+        Eigen3::Eigen
+        CUDA::cublas
+        CUDA::cudart
+    )
+else()
+    target_link_libraries(parsex_batch
+        PRIVATE
+        OpenMP::OpenMP_CXX
+        Eigen3::Eigen
+    )
+endif()
 
 # Reference Serial Solver (Optional, keeping for regression testing)
 add_executable(circuit_solver src/main.cpp src/MNASolver.cpp)

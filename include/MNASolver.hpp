@@ -17,6 +17,10 @@ public:
     MNASolver(const CircuitGraph& graph);
     SimulationResult solve();
 
+    // Expose matrix assembly for GPU/Batch solvers
+    void assemble_system(LinearSolver::Matrix& A, LinearSolver::Vector& b);
+    int get_matrix_size() const { return matrix_size_; }
+
 private:
     const CircuitGraph& graph_;
     int num_nodes_;
