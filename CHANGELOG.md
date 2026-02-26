@@ -1,10 +1,10 @@
 Version **0.3.0**
 Date Released: **02/25/2026**
 
-- Integrated Pybind11 `.so` module compilation to expose C++ structures securely to Python.
-- Adopted Conda environments (`parsexenv.yml`) for seamless deployment and PyTorch binding tests.
-- Implemented independent partial pivoting and host memory extraction for the CUDA GPU Kernel algorithm.
-- Standardized C++ preprocessor syntax block-alignment and finalized uniform `snake_case` taxonomy changes across header and source files.
+- Pybind11 module compilation to expose C++ structures securely to Python
+- Conda environment integration for seamless deployment and PyTorch binding tests
+- Independent partial pivoting and host memory extraction for the CUDA GPU Kernel algorithm
+
 Version **0.2.0**
 
 Date Released: **02/16/2026**
