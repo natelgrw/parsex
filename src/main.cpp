@@ -1,9 +1,22 @@
-#include "MNASolver.hpp"
+/*
+ * main.cpp
+ * 
+ * Author: natelgrw
+ * Last Edited: 02/25/2026
+ * 
+ * Main C++ implementation file for Parsex.
+*/
+
+#include "mna_solver.hpp"
+#include "circuit_topology.hpp"
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
 #include <fstream>
 #include <cmath>
+#include "json.hpp"
+
+using json = nlohmann::json;
 
 int main(int argc, char** argv) {
     if (argc < 2) {
@@ -12,34 +25,62 @@ int main(int argc, char** argv) {
     }
 
     std::string filepath = argv[1];
-    CircuitGraph graph;
+    CircuitTopology topo;
     
-    if (!graph.load_from_json(filepath)) {
+    if (!topo.load_from_json(filepath)) {
         return 1;
     }
     
+    // for scalar simulation, we must extract the actual values from the JSON
+    // because CircuitTopology doesn't load component values (it only maps topology)
+    std::ifstream f(filepath);
+    json data;
     try {
-        MNASolver solver(graph);
-        auto results = solver.solve(); // Now returns SimulationResult struct
+        data = json::parse(f);
+    } catch (...) {
+        std::cerr << "Failed to parse JSON for parameter extraction." << std::endl;
+        return 1;
+    }
+
+    ParameterBatch params(1, topo.num_resistors, topo.num_voltage_sources, topo.num_current_sources);
+    
+    // quick loop to back-fill scalar values
+    for (const auto& item : data["components"]) {
+        std::string ctype = item.value("type", "");
+        std::string cname = item.value("name", "");
+        double cval = item.value("value", 0.0);
         
-        std::cout << "Simulation Results for " << graph.name << ":" << std::endl;
+        for (const auto& topoc : topo.components) {
+            if (topoc.name == cname) {
+                if (ctype == "R") params.r_values[topoc.param_index] = cval;
+                if (ctype == "V") params.v_values[topoc.param_index] = cval;
+                if (ctype == "I") params.i_values[topoc.param_index] = cval;
+                break;
+            }
+        }
+    }
+
+    try {
+        MNASolver solver(topo);
+        auto results = solver.solve(params, 0);
+
+        std::cout << "Simulation Results for " << topo.name << ":" << std::endl;
         
-        // Create solution JSON object
+        // create JSON object
         json solution_json;
-        solution_json["circuit_name"] = graph.name;
+        solution_json["circuit_name"] = topo.name;
         solution_json["results"] = json::object();
         solution_json["results"]["voltages"] = json::object();
         solution_json["results"]["currents"] = json::object();
         solution_json["results"]["power"] = json::object();
         
-        // Helper to round small floating point errors
+        // helper to round small floating point errors
         auto round_val = [](double val) {
-            // Round to 9 decimal places to avoid e.g. -0.0050000000000001
             const double multiplier = 1e9;
             return std::round(val * multiplier) / multiplier;
         };
 
-        // Output and JSON population
+        // output and JSON population
         std::cout << "  Voltages:" << std::endl;
         for (const auto& pair : results.node_voltages) {
             std::cout << "    Node " << pair.first << ": " 
@@ -61,9 +102,6 @@ int main(int argc, char** argv) {
              solution_json["results"]["power"][pair.first] = round_val(pair.second);
         }
 
-        
-        // Write to output file in circuit_results directory
-        // Input: path/to/filename.json -> Output: circuit_results/filename.sol.json
         std::filesystem::path input_path(filepath);
         std::string filename = input_path.stem().string();
         std::filesystem::path output_path = "circuit_results";
@@ -73,7 +111,7 @@ int main(int argc, char** argv) {
         
         std::ofstream out_file(output_path);
         if (out_file.is_open()) {
-            out_file << solution_json.dump(2) << std::endl; // Indent with 2 spaces
+            out_file << solution_json.dump(2) << std::endl;
         } else {
             std::cerr << "Failed to write solution file to " << output_path << std::endl;
         }

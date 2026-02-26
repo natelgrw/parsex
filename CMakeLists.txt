@@ -23,6 +23,8 @@ find_package(OpenMP REQUIRED)
 # Trying standard find first (should be found via Homebrew now)
 find_package(Eigen3 REQUIRED NO_MODULE)
 
+# Find pybind11 globally (via conda/pip env)
+find_package(pybind11 REQUIRED)
 
 # Include directories
 include_directories(include)
@@ -32,8 +34,8 @@ include_directories(include/parallel)
 
 # Sources
 set(SOURCES
-    src/MNASolver.cpp
-    src/cpu/CpuSolver.cpp
+    src/mna_solver.cpp
+    src/cpu/cpu_solver.cpp
 )
 
 # CUDA Support
@@ -42,7 +44,7 @@ check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     find_package(CUDAToolkit REQUIRED)
-    list(APPEND SOURCES src/gpu/GpuSolver.cu)
+    list(APPEND SOURCES src/gpu/gpu_solver.cu)
     set(CUDA_ENABLED ON)
 else()
     message(STATUS "CUDA not found. GPU module will be disabled.")
@@ -70,10 +72,29 @@ else()
 endif()
 
 # Reference Serial Solver (Optional, keeping for regression testing)
-add_executable(circuit_solver src/main.cpp src/MNASolver.cpp)
+add_executable(circuit_solver src/main.cpp src/mna_solver.cpp)
 target_link_libraries(circuit_solver
     PRIVATE
     Eigen3::Eigen 
     # Serial solver doesn't strictly need OpenMP but good to have consistency
     OpenMP::OpenMP_CXX 
 )
+
+# Pybind11 Python Extension Module
+pybind11_add_module(parsex src/bindings.cpp ${SOURCES})
+
+if(CUDA_ENABLED)
+    target_link_libraries(parsex
+        PRIVATE
+        OpenMP::OpenMP_CXX
+        Eigen3::Eigen
+        CUDA::cublas
+        CUDA::cudart
+    )
+else()
+    target_link_libraries(parsex
+        PRIVATE
+        OpenMP::OpenMP_CXX
+        Eigen3::Eigen
+    )
+endif()

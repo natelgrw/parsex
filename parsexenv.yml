@@ -1,0 +1,13 @@
+name: parsexenv
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pybind11
+  - numpy
+  - cmake
+  - pytorch
+  - jupyter
+  - ipykernel
