@@ -29,20 +29,34 @@ conda env create -f parsexenv.yml
 conda activate parsexenv
 
 mkdir build && cd build
-cmake ..
+# IMPORTANT: compile in release mode and point CMake to the Conda Python executable
+cmake .. -DPython_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release
 make -j$(sysctl -n hw.ncpu)
 ```
 
 ### Run Batch Solver
-Run the solver on a directory of circuit JSON files:
+Use the standalone C++ solver to test simulations. You can limit the batch size and specify the topology file:
 
 ```bash
-# CPU Solver (OpenMP)
-./parsex_batch --cpu circuits/
+# CPU solver (OpenMP) executing 1 Million parallel variations of the voltage divider
+./parsex_batch --cpu --batch=1000000 --topo=voltage_divider.json
 
-# GPU Solver (CUDA)
-./parsex_batch --gpu circuits/
+# GPU solver (CUDA) executing 500k variations
+./parsex_batch --gpu --batch=500000 --topo=voltage_divider.json
 ```
+
+### PyTorch Python Bindings (Troubleshooting)
+If streaming data directly from Parsex into a PyTorch neural network inside a Jupyter Notebook on macOS, you may experience a silent kernel hang. This happens because Parsex's C++ OpenMP thread pool collides with PyTorch's `Accelerate` backend.
+
+To resolve this:
+1. **Force PyTorch to use Apple Silicon (MPS):** Move your PyTorch model and tensors to the GPU (`.to("mps")`).
+2. **Restrict PyTorch to 1 CPU thread:** Add this to the absolute top of your Python file to break the deadlock:
+   ```python
+   import os
+   os.environ["OMP_NUM_THREADS"] = "1"
+   import torch
+   torch.set_num_threads(1)
+   ```
 
 Results are saved to `results/<name>_sol.json`:
 
