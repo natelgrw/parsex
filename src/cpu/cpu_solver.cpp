@@ -13,7 +13,7 @@
 #include <cmath>
 #include <algorithm>
 
-// phase 5 intrinsics
+// determining CPU architecture
 #if defined(__AVX2__)
     #include <immintrin.h>
 #elif defined(__aarch64__)

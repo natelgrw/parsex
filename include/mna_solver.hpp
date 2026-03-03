@@ -29,7 +29,7 @@ public:
     // original legacy solve
     SimulationResult solve(const ParameterBatch& params, int batch_idx);
 
-    // phase 1/2: direct SoA assembly
+    // direct SoA assembly
     void assemble_system_soa(double* A_soa, double* b_soa, const ParameterBatch& params, int batch_idx, int max_n, int max_batch_size);
 
     int get_matrix_size() const { return matrix_size_; }
@@ -39,7 +39,6 @@ private:
     int num_nodes_;
     int num_v_sources_;
     int matrix_size_;
-    
     std::map<std::string, int> voltage_source_indices_;
 };
 
